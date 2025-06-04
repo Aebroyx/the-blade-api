@@ -86,6 +86,7 @@ func main() {
 	{
 		// Add your protected routes here
 		protected.GET("/me", authHandler.GetMe)
+		protected.POST("/auth/logout", authHandler.Logout)
 	}
 
 	// Start server

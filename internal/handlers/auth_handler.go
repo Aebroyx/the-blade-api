@@ -110,7 +110,31 @@ func (h *AuthHandler) Login(c *gin.Context) {
 }
 
 func (h *AuthHandler) Logout(c *gin.Context) {
-	// Add logout logic
+	// Clear access token cookie by setting it to expire immediately
+	c.SetCookie(
+		"access_token",
+		"",
+		-1,    // MaxAge -1 means delete immediately
+		"/",   // path
+		"",    // domain (empty for current domain)
+		false, // secure (set to false for development)
+		true,  // httpOnly
+	)
+
+	// Clear refresh token cookie
+	c.SetCookie(
+		"refresh_token",
+		"",
+		-1,    // MaxAge -1 means delete immediately
+		"/",   // path
+		"",    // domain (empty for current domain)
+		false, // secure (set to false for development)
+		true,  // httpOnly
+	)
+
+	c.JSON(http.StatusOK, gin.H{
+		"message": "Logged out successfully",
+	})
 }
 
 func (h *AuthHandler) GetMe(c *gin.Context) {
