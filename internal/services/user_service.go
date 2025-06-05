@@ -141,8 +141,8 @@ func (s *UserService) generateToken(user models.Users, expiry time.Duration) (st
 	return tokenString, expirationTime, nil
 }
 
-func (s *UserService) GetAllUsers() ([]models.GetUserResponse, error) {
-	var users []models.GetUserResponse
+func (s *UserService) GetAllUsers() ([]models.Users, error) {
+	var users []models.Users
 	if err := s.db.Find(&users).Error; err != nil {
 		return nil, err
 	}
@@ -150,10 +150,10 @@ func (s *UserService) GetAllUsers() ([]models.GetUserResponse, error) {
 	return users, nil
 }
 
-func (s *UserService) GetUserById(id string) (models.GetUserResponse, error) {
-	var user models.GetUserResponse
+func (s *UserService) GetUserById(id string) (models.Users, error) {
+	var user models.Users
 	if err := s.db.Where("id = ?", id).First(&user).Error; err != nil {
-		return models.GetUserResponse{}, err
+		return models.Users{}, err
 	}
 	return user, nil
 }

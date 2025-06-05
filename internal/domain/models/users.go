@@ -65,10 +65,3 @@ type Claims struct {
 	Role     string `json:"role"`
 	jwt.RegisteredClaims
 }
-type GetUserResponse struct {
-	ID       uint   `json:"id"`
-	Username string `json:"username"`
-	Email    string `json:"email"`
-	Name     string `json:"name"`
-	Role     string `json:"role"`
-}
