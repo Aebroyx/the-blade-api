@@ -85,8 +85,15 @@ func main() {
 	protected.Use(middleware.Auth(cfg.JWTSecret, db.DB))
 	{
 		// Add your protected routes here
+		// AUTH ROUTES
 		protected.GET("/me", authHandler.GetMe)
 		protected.POST("/auth/logout", authHandler.Logout)
+		// USER ROUTES
+		user := protected.Group("/user")
+		{
+			user.GET("/all", authHandler.GetAllUsers)
+			user.GET("/:id", authHandler.GetUserById)
+		}
 	}
 
 	// Start server

@@ -146,3 +146,21 @@ func (h *AuthHandler) GetMe(c *gin.Context) {
 
 	c.JSON(http.StatusOK, user)
 }
+
+func (h *AuthHandler) GetAllUsers(c *gin.Context) {
+	users, err := h.userService.GetAllUsers()
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Internal server error"})
+		return
+	}
+	c.JSON(http.StatusOK, users)
+}
+
+func (h *AuthHandler) GetUserById(c *gin.Context) {
+	user, err := h.userService.GetUserById(c.Param("id"))
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Internal server error"})
+		return
+	}
+	c.JSON(http.StatusOK, user)
+}
