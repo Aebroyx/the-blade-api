@@ -157,3 +157,50 @@ func (s *UserService) GetUserById(id string) (models.Users, error) {
 	}
 	return user, nil
 }
+
+// CreateUser creates a new user with the provided data
+func (s *UserService) CreateUser(req *models.CreateUserRequest) (*models.CreateUserResponse, error) {
+	// Check if username already exists
+	var existingUser models.Users
+	if err := s.db.Where("username = ?", req.Username).First(&existingUser).Error; err == nil {
+		return nil, errors.New("username already exists")
+	} else if !errors.Is(err, gorm.ErrRecordNotFound) {
+		return nil, err
+	}
+
+	// Check if email already exists
+	if err := s.db.Where("email = ?", req.Email).First(&existingUser).Error; err == nil {
+		return nil, errors.New("email already exists")
+	} else if !errors.Is(err, gorm.ErrRecordNotFound) {
+		return nil, err
+	}
+
+	// Hash password
+	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(req.Password), bcrypt.DefaultCost)
+	if err != nil {
+		return nil, err
+	}
+
+	// Create new user
+	user := models.Users{
+		Username: req.Username,
+		Email:    req.Email,
+		Password: string(hashedPassword),
+		Name:     req.Name,
+		Role:     req.Role,
+	}
+
+	if err := s.db.Create(&user).Error; err != nil {
+		return nil, err
+	}
+
+	// Return user data without password
+	return &models.CreateUserResponse{
+		ID:        user.ID,
+		Username:  user.Username,
+		Email:     user.Email,
+		Name:      user.Name,
+		Role:      user.Role,
+		CreatedAt: user.CreatedAt,
+	}, nil
+}
