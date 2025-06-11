@@ -77,3 +77,46 @@ func (h *UserHandler) CreateUser(c *gin.Context) {
 
 	common.SendSuccess(c, http.StatusCreated, "User created successfully", user)
 }
+
+func (h *UserHandler) UpdateUser(c *gin.Context) {
+	var req models.UpdateUserRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		common.SendError(c, http.StatusBadRequest, "Invalid request body", common.CodeInvalidRequest, err.Error())
+		return
+	}
+
+	// Validate request
+	if err := h.validate.Struct(req); err != nil {
+		common.SendError(c, http.StatusBadRequest, "Validation failed", common.CodeValidationError, err.Error())
+		return
+	}
+
+	// Update user
+	user, err := h.userService.UpdateUser(c.Param("id"), &req)
+	if err != nil {
+		common.SendError(c, http.StatusInternalServerError, "Internal server error", common.CodeInternalError, nil)
+		return
+	}
+
+	common.SendSuccess(c, http.StatusOK, "User updated successfully", user)
+}
+
+func (h *UserHandler) DeleteUser(c *gin.Context) {
+	user, err := h.userService.DeleteUser(c.Param("id"))
+	if err != nil {
+		common.SendError(c, http.StatusInternalServerError, "Internal server error", common.CodeInternalError, nil)
+		return
+	}
+
+	common.SendSuccess(c, http.StatusOK, "User deleted successfully", user)
+}
+
+func (h *UserHandler) SoftDeleteUser(c *gin.Context) {
+	user, err := h.userService.SoftDeleteUser(c.Param("id"))
+	if err != nil {
+		common.SendError(c, http.StatusInternalServerError, "Internal server error", common.CodeInternalError, nil)
+		return
+	}
+
+	common.SendSuccess(c, http.StatusOK, "User soft deleted successfully", user)
+}

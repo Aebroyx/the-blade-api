@@ -143,7 +143,7 @@ func (s *UserService) generateToken(user models.Users, expiry time.Duration) (st
 
 func (s *UserService) GetAllUsers() ([]models.Users, error) {
 	var users []models.Users
-	if err := s.db.Find(&users).Error; err != nil {
+	if err := s.db.Where("is_deleted = ?", false).Find(&users).Error; err != nil {
 		return nil, err
 	}
 
@@ -203,4 +203,49 @@ func (s *UserService) CreateUser(req *models.CreateUserRequest) (*models.CreateU
 		Role:      user.Role,
 		CreatedAt: user.CreatedAt,
 	}, nil
+}
+
+func (s *UserService) UpdateUser(id string, req *models.UpdateUserRequest) (*models.Users, error) {
+	var user models.Users
+	if err := s.db.Where("id = ?", id).First(&user).Error; err != nil {
+		return nil, err
+	}
+
+	// Update user fields
+	user.Username = req.Username
+	user.Email = req.Email
+	user.Name = req.Name
+	user.Role = req.Role
+
+	// Only update password if provided
+	if req.Password != "" {
+		hashedPassword, err := bcrypt.GenerateFromPassword([]byte(req.Password), bcrypt.DefaultCost)
+		if err != nil {
+			return nil, err
+		}
+		user.Password = string(hashedPassword)
+	}
+
+	// Update user
+	if err := s.db.Model(&user).Updates(&user).Error; err != nil {
+		return nil, err
+	}
+
+	return &user, nil
+}
+
+func (s *UserService) DeleteUser(id string) (*models.Users, error) {
+	var user models.Users
+	if err := s.db.Where("id = ?", id).Delete(&user).Error; err != nil {
+		return nil, err
+	}
+	return &user, nil
+}
+
+func (s *UserService) SoftDeleteUser(id string) (*models.Users, error) {
+	var user models.Users
+	if err := s.db.Model(&user).Where("id = ?", id).Update("is_deleted", true).Error; err != nil {
+		return nil, err
+	}
+	return &user, nil
 }

@@ -95,6 +95,9 @@ func main() {
 		{
 			user.GET("/:id", userHandler.GetUserById)
 			user.POST("/create", userHandler.CreateUser)
+			user.PUT("/:id", userHandler.UpdateUser)
+			user.DELETE("/:id", userHandler.DeleteUser)
+			user.PUT("/:id/soft-delete", userHandler.SoftDeleteUser)
 		}
 	}
 
