@@ -34,6 +34,7 @@ func main() {
 
 	// Initialize handlers
 	authHandler := handlers.NewAuthHandler(userService)
+	userHandler := handlers.NewUserHandler(userService)
 
 	// Initialize router
 	router := gin.New() // Use gin.New() instead of gin.Default() to avoid default middleware
@@ -89,10 +90,14 @@ func main() {
 		protected.GET("/me", authHandler.GetMe)
 		protected.POST("/auth/logout", authHandler.Logout)
 		// USER ROUTES
-		protected.GET("/users", authHandler.GetAllUsers)
+		protected.GET("/users", userHandler.GetAllUsers)
 		user := protected.Group("/user")
 		{
-			user.GET("/:id", authHandler.GetUserById)
+			user.GET("/:id", userHandler.GetUserById)
+			user.POST("/create", userHandler.CreateUser)
+			user.PUT("/:id", userHandler.UpdateUser)
+			user.DELETE("/:id", userHandler.DeleteUser)
+			user.PUT("/:id/soft-delete", userHandler.SoftDeleteUser)
 		}
 	}
 

@@ -65,3 +65,30 @@ type Claims struct {
 	Role     string `json:"role"`
 	jwt.RegisteredClaims
 }
+
+// CreateUserRequest represents the request payload for creating a user
+type CreateUserRequest struct {
+	Username string `json:"username" validate:"required,min=3,max=50"`
+	Email    string `json:"email" validate:"required,email,max=255"`
+	Password string `json:"password" validate:"required,min=6"`
+	Name     string `json:"name" validate:"required,max=100"`
+	Role     string `json:"role" validate:"required,oneof=admin user"`
+}
+
+// CreateUserResponse represents the response payload for creating a user
+type CreateUserResponse struct {
+	ID        uint      `json:"id"`
+	Username  string    `json:"username"`
+	Email     string    `json:"email"`
+	Name      string    `json:"name"`
+	Role      string    `json:"role"`
+	CreatedAt time.Time `json:"created_at"`
+}
+
+type UpdateUserRequest struct {
+	Username string `json:"username" validate:"required,min=3,max=50"`
+	Email    string `json:"email" validate:"required,email,max=255"`
+	Name     string `json:"name" validate:"required,max=100"`
+	Role     string `json:"role" validate:"required,oneof=admin user"`
+	Password string `json:"password,omitempty" validate:"omitempty,min=6"`
+}
