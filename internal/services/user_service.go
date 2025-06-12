@@ -6,6 +6,7 @@ import (
 
 	"github.com/Aebroyx/the-blade-api/internal/config"
 	"github.com/Aebroyx/the-blade-api/internal/domain/models"
+	"github.com/Aebroyx/the-blade-api/internal/pagination"
 	"github.com/golang-jwt/jwt/v5"
 
 	"golang.org/x/crypto/bcrypt"
@@ -15,6 +16,25 @@ import (
 type UserService struct {
 	db     *gorm.DB
 	config *config.Config
+}
+
+// UserQueryParams represents the query parameters for user listing
+type UserQueryParams struct {
+	Page     int    `json:"page" form:"page" binding:"min=1"`
+	PageSize int    `json:"pageSize" form:"pageSize" binding:"min=1,max=100"`
+	Search   string `json:"search" form:"search"`
+	Role     string `json:"role" form:"role"`
+	SortBy   string `json:"sortBy" form:"sortBy" binding:"omitempty,oneof=name email role created_at"`
+	SortDesc bool   `json:"sortDesc" form:"sortDesc"`
+}
+
+// UserListResponse represents the paginated response for user listing
+type UserListResponse struct {
+	Data       []models.Users `json:"data"`
+	Total      int64          `json:"total"`
+	Page       int            `json:"page"`
+	PageSize   int            `json:"pageSize"`
+	TotalPages int            `json:"totalPages"`
 }
 
 func NewUserService(db *gorm.DB, config *config.Config) *UserService {
@@ -141,13 +161,80 @@ func (s *UserService) generateToken(user models.Users, expiry time.Duration) (st
 	return tokenString, expirationTime, nil
 }
 
-func (s *UserService) GetAllUsers() ([]models.Users, error) {
-	var users []models.Users
-	if err := s.db.Where("is_deleted = ?", false).Find(&users).Error; err != nil {
-		return nil, err
+// GetAllUsers retrieves users with pagination, search, and filters
+func (s *UserService) GetAllUsers(params pagination.QueryParams) (*pagination.PaginatedResponse, error) {
+	config := pagination.PaginationConfig{
+		Model: &models.Users{},
+		BaseCondition: map[string]interface{}{
+			"is_deleted": false,
+		},
+		SearchFields: []string{"name", "email", "username"},
+		FilterFields: map[string]string{
+			"role":       "role",
+			"name":       "name",
+			"email":      "email",
+			"username":   "username",
+			"created_at": "created_at",
+			"updated_at": "updated_at",
+		},
+		DateFields: map[string]pagination.DateField{
+			"created_at": {
+				Start: "created_at",
+				End:   "created_at",
+			},
+			"updated_at": {
+				Start: "updated_at",
+				End:   "updated_at",
+			},
+		},
+		SortFields: []string{
+			"name",
+			"email",
+			"role",
+			"created_at",
+			"updated_at",
+		},
+		DefaultSort:  "created_at",
+		DefaultOrder: "DESC",
 	}
 
-	return users, nil
+	paginator := pagination.NewPaginator(s.db)
+	return paginator.Paginate(params, config)
+
+	// Pagination Example (with join)
+	// GetAllUsers retrieves users with pagination, search, and filters
+	// config := pagination.PaginationConfig{
+	// 	Model: &models.Users{},
+	// 	BaseCondition: map[string]interface{}{
+	// 		"is_deleted": false,
+	// 	},
+	// 	SearchFields: []string{"name", "email", "username"},
+	// 	FilterFields: map[string]string{
+	// 		"role": "role",
+	// 	},
+	// 	DateFields: map[string]pagination.DateField{
+	// 		"created_at": {
+	// 			Start: "created_at",
+	// 			End:   "created_at",
+	// 		},
+	// 		"updated_at": {
+	// 			Start: "updated_at",
+	// 			End:   "updated_at",
+	// 		},
+	// 	},
+	// 	SortFields: []string{
+	// 		"name",
+	// 		"email",
+	// 		"role",
+	// 		"created_at",
+	// 		"updated_at",
+	// 	},
+	// 	DefaultSort:  "created_at",
+	// 	DefaultOrder: "DESC",
+	// }
+
+	// paginator := pagination.NewPaginator(s.db)
+	// return paginator.Paginate(params, config)
 }
 
 func (s *UserService) GetUserById(id string) (models.Users, error) {

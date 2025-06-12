@@ -5,6 +5,7 @@ import (
 
 	"github.com/Aebroyx/the-blade-api/internal/common"
 	"github.com/Aebroyx/the-blade-api/internal/domain/models"
+	"github.com/Aebroyx/the-blade-api/internal/pagination"
 	"github.com/Aebroyx/the-blade-api/internal/services"
 	"github.com/gin-gonic/gin"
 	"github.com/go-playground/validator/v10"
@@ -22,13 +23,28 @@ func NewUserHandler(userService *services.UserService) *UserHandler {
 	}
 }
 
+// GetAllUsers handles GET /api/users
 func (h *UserHandler) GetAllUsers(c *gin.Context) {
-	users, err := h.userService.GetAllUsers()
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Internal server error"})
+	var params pagination.QueryParams
+	if err := params.Bind(c); err != nil {
+		common.SendError(c, http.StatusBadRequest, "Invalid query parameters", common.CodeInvalidRequest, err.Error())
 		return
 	}
-	common.SendSuccess(c, http.StatusOK, "Users fetched successfully", users)
+
+	// Validate query parameters
+	if err := h.validate.Struct(params); err != nil {
+		common.SendError(c, http.StatusBadRequest, "Validation failed", common.CodeValidationError, err.Error())
+		return
+	}
+
+	// Get users with pagination, search, and filters
+	response, err := h.userService.GetAllUsers(params)
+	if err != nil {
+		common.SendError(c, http.StatusInternalServerError, "Failed to fetch users", common.CodeInternalError, err.Error())
+		return
+	}
+
+	common.SendSuccess(c, http.StatusOK, "Users fetched successfully", response)
 }
 
 func (h *UserHandler) GetUserById(c *gin.Context) {
