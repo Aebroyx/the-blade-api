@@ -3,6 +3,7 @@ package config
 import (
 	"fmt"
 	"os"
+	"strconv"
 	"time"
 
 	"github.com/joho/godotenv"
@@ -21,6 +22,13 @@ type Config struct {
 	DBPassword string
 	DBName     string
 	DBSSLMode  string
+
+	// Redis config
+	UseRedis      bool
+	RedisHost     string
+	RedisPort     string
+	RedisPassword string
+	RedisDB       int
 
 	// JWT config
 	JWTSecret string
@@ -46,6 +54,14 @@ func Load() (*Config, error) {
 		return nil, fmt.Errorf("invalid JWT_EXPIRY format: %v", err)
 	}
 
+	// Parse Redis DB number
+	redisDB := 0
+	if dbStr := getEnv("REDIS_DB", "0"); dbStr != "" {
+		if db, err := strconv.Atoi(dbStr); err == nil {
+			redisDB = db
+		}
+	}
+
 	return &Config{
 		// Server config
 		Environment: getEnv("APP_ENV", "development"),
@@ -59,6 +75,13 @@ func Load() (*Config, error) {
 		DBPassword: getEnv("DB_PASSWORD", ""),
 		DBName:     getEnv("DB_NAME", "blade_pos"),
 		DBSSLMode:  getEnv("DB_SSL_MODE", "disable"),
+
+		// Redis config
+		UseRedis:      getEnv("USE_REDIS", "false") == "true",
+		RedisHost:     getEnv("REDIS_HOST", "localhost"),
+		RedisPort:     getEnv("REDIS_PORT", "6379"),
+		RedisPassword: getEnv("REDIS_PASSWORD", ""),
+		RedisDB:       redisDB,
 
 		// JWT config
 		JWTSecret: getEnv("JWT_SECRET", ""),

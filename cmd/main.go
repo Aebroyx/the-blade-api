@@ -1,6 +1,8 @@
 package main
 
 import (
+	"context"
+	"fmt"
 	"log"
 
 	"github.com/Aebroyx/the-blade-api/internal/config"
@@ -9,9 +11,13 @@ import (
 	"github.com/Aebroyx/the-blade-api/internal/middleware"
 	"github.com/Aebroyx/the-blade-api/internal/services"
 	"github.com/gin-gonic/gin"
+	"github.com/redis/go-redis/v9"
 )
 
 func main() {
+	// Create background context
+	ctx := context.Background()
+
 	// Load configuration
 	cfg, err := config.Load()
 	if err != nil {
@@ -29,8 +35,26 @@ func main() {
 		log.Fatalf("Failed to connect to database: %v", err)
 	}
 
+	// Initialize Redis client
+	var redisClient *redis.Client
+	if cfg.UseRedis {
+		redisClient = redis.NewClient(&redis.Options{
+			Addr:     fmt.Sprintf("%s:%s", cfg.RedisHost, cfg.RedisPort),
+			Password: cfg.RedisPassword,
+			DB:       cfg.RedisDB,
+		})
+
+		// Test Redis connection
+		if err := redisClient.Ping(ctx).Err(); err != nil {
+			log.Printf("Warning: Failed to connect to Redis: %v. Running without Redis caching.", err)
+			redisClient = nil
+		} else {
+			log.Printf("Successfully connected to Redis at %s:%s", cfg.RedisHost, cfg.RedisPort)
+		}
+	}
+
 	// Initialize services
-	userService := services.NewUserService(db.DB, cfg)
+	userService := services.NewUserService(db.DB, cfg, redisClient)
 
 	// Initialize handlers
 	authHandler := handlers.NewAuthHandler(userService)
@@ -83,9 +107,17 @@ func main() {
 
 	// Protected routes
 	protected := router.Group("/api")
-	protected.Use(middleware.Auth(cfg.JWTSecret, db.DB))
+
+	// Use appropriate auth middleware based on Redis availability
+	if redisClient != nil {
+		protected.Use(middleware.Auth(cfg.JWTSecret, db.DB, redisClient))
+		log.Println("Using Redis-enabled auth middleware")
+	} else {
+		protected.Use(middleware.AuthWithoutRedis(cfg.JWTSecret, db.DB))
+		log.Println("Using database-only auth middleware")
+	}
+
 	{
-		// Add your protected routes here
 		// AUTH ROUTES
 		protected.GET("/me", authHandler.GetMe)
 		protected.POST("/auth/logout", authHandler.Logout)

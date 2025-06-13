@@ -1,21 +1,26 @@
 package services
 
 import (
+	"context"
 	"errors"
+	"fmt"
+	"log"
 	"time"
 
 	"github.com/Aebroyx/the-blade-api/internal/config"
 	"github.com/Aebroyx/the-blade-api/internal/domain/models"
 	"github.com/Aebroyx/the-blade-api/internal/pagination"
 	"github.com/golang-jwt/jwt/v5"
+	"github.com/redis/go-redis/v9"
 
 	"golang.org/x/crypto/bcrypt"
 	"gorm.io/gorm"
 )
 
 type UserService struct {
-	db     *gorm.DB
-	config *config.Config
+	db          *gorm.DB
+	config      *config.Config
+	redisClient *redis.Client
 }
 
 // UserQueryParams represents the query parameters for user listing
@@ -37,10 +42,24 @@ type UserListResponse struct {
 	TotalPages int            `json:"totalPages"`
 }
 
-func NewUserService(db *gorm.DB, config *config.Config) *UserService {
+func NewUserService(db *gorm.DB, config *config.Config, redisClient *redis.Client) *UserService {
 	return &UserService{
-		db:     db,
-		config: config,
+		db:          db,
+		config:      config,
+		redisClient: redisClient,
+	}
+}
+
+// invalidateUserCache removes the user data from Redis cache
+func (s *UserService) invalidateUserCache(userID uint) {
+	if s.redisClient != nil {
+		userKey := fmt.Sprintf("user:%d", userID)
+		err := s.redisClient.Del(context.Background(), userKey).Err()
+		if err != nil {
+			log.Printf("Failed to invalidate user cache for ID %d: %v", userID, err)
+		} else {
+			log.Printf("Successfully invalidated user cache for ID %d", userID)
+		}
 	}
 }
 
@@ -318,21 +337,40 @@ func (s *UserService) UpdateUser(id string, req *models.UpdateUserRequest) (*mod
 		return nil, err
 	}
 
+	// Invalidate user cache after update
+	s.invalidateUserCache(user.ID)
+
 	return &user, nil
 }
 
 func (s *UserService) DeleteUser(id string) (*models.Users, error) {
 	var user models.Users
-	if err := s.db.Where("id = ?", id).Delete(&user).Error; err != nil {
+	if err := s.db.Where("id = ?", id).First(&user).Error; err != nil {
 		return nil, err
 	}
+
+	if err := s.db.Delete(&user).Error; err != nil {
+		return nil, err
+	}
+
+	// Invalidate user cache after deletion
+	s.invalidateUserCache(user.ID)
+
 	return &user, nil
 }
 
 func (s *UserService) SoftDeleteUser(id string) (*models.Users, error) {
 	var user models.Users
-	if err := s.db.Model(&user).Where("id = ?", id).Update("is_deleted", true).Error; err != nil {
+	if err := s.db.Where("id = ?", id).First(&user).Error; err != nil {
 		return nil, err
 	}
+
+	if err := s.db.Model(&user).Update("is_deleted", true).Error; err != nil {
+		return nil, err
+	}
+
+	// Invalidate user cache after soft deletion
+	s.invalidateUserCache(user.ID)
+
 	return &user, nil
 }
